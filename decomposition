@@ -1,0 +1,16 @@
+Llama Runner Game
+The Player (a Llama) is running through a wilderness, and must jump up and down
+ to avoid Obstacles (Cacti). The Player slowly speeds up, and dies if it hits
+ an obstacle.
+
+The Llama will have a speed attribute, but will remain stationary on the screen
+ while the world flies past. It can jump up and down.
+
+
+
+Possible trialling things:
+
+- jumping mechanic: variable or fixed?
+- obstacles: a list of obstacle instances, or a pygame sprite group?
+- how to do speeding up?
+- ducking?
