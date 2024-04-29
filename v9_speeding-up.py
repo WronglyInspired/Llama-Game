@@ -1,4 +1,6 @@
 """Llama Game
+The collision detection is now improved, but I have discovered it uses rects
+and not masks.
 """
 import pygame as pg
 from pygame.locals import (
@@ -24,12 +26,6 @@ GRAVITY = 10
 FPS = 30
 SCREEN_WIDTH, SCREEN_HEIGHT = 1280, 480
 GROUND_HEIGHT = SCREEN_HEIGHT - 80
-
-
-class Velocity:
-    def __init__(self):
-        self.x = 0
-        self.y = 0
 
 
 class Ground(pg.sprite.Sprite):
@@ -126,70 +122,99 @@ class Obstacle(pg.sprite.Sprite):
         self.rect = self.surf.get_rect().move(SCREEN_WIDTH, GROUND_HEIGHT -
                                               self.height)
 
-    def update(self, step):
-        self.rect.x -= step
+    def update(self):
+        self.rect.x -= 1
         if self.rect.x <= -self.width:
             self.kill()
 
 
-# initialise display
-pg.display.set_icon(GAME_ICON)
-pg.display.set_caption(GAME_TITLE)
-screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+def kill_screen():
+    while True:
+        for event in pg.event.get():
+            if event.type == KEYDOWN:
+                # stop the loop if user hits Esc key
+                if event.key == K_ESCAPE:
+                    return False
+                if event.key == K_SPACE:
+                    return True
+            # stop the loop if user hits window close
+            elif event.type == QUIT:
+                return False
 
-# initialise clock
-clock = pg.time.Clock()
 
-# initialise sprites
-ground = Ground(SCREEN_WIDTH, GROUND_HEIGHT, 1)
-player = Player()
+def main():
+    # initialise display
+    pg.display.set_icon(GAME_ICON)
+    pg.display.set_caption(GAME_TITLE)
+    screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
-# initialise sprite groups
-obstacles = pg.sprite.Group()
-all_sprites = pg.sprite.Group()
-all_sprites.add(ground)
-all_sprites.add(player)
+    # initialise clock
+    clock = pg.time.Clock()
 
-# initialise obstacle timer
-frames_since_obstacle = 0
+    # initialise sprites
+    ground = Ground(SCREEN_WIDTH, GROUND_HEIGHT, 1)
+    player = Player()
 
-# initialise step / speed variable
-speed = 16
+    # initialise sprite groups
+    obstacles = pg.sprite.Group()
+    all_sprites = pg.sprite.Group()
+    all_sprites.add(ground)
+    all_sprites.add(player)
 
-# game loop
+    # initialise obstacle timer
+    frames_since_obstacle = 0
+
+    # initialise step / speed variable
+    speed = 16
+
+    # game loop
+    alive = True
+    while True:
+        for event in pg.event.get():
+            if event.type == KEYDOWN:
+                # stop the loop if user hits Esc key
+                if event.key == K_ESCAPE:
+                    return False
+            # stop the loop if user hits window close
+            elif event.type == QUIT:
+                return False
+
+        pressed_keys = pg.key.get_pressed()
+
+        # add obstacles
+        if frames_since_obstacle % random.randint(11, 32) == 0:
+            obstacle = Obstacle()
+            obstacles.add(obstacle)
+            all_sprites.add(obstacle)
+            frames_since_obstacle = 0
+
+        player.update(pressed_keys)
+
+        # collision detection - moves obstacle by 1 pixel, then checks to
+        # see if collision has occurred
+        for i in range(int(round(speed))):
+            obstacles.update()
+            if pg.sprite.spritecollideany(player, obstacles):
+                alive = False
+
+        screen.fill((255, 255, 255))
+
+        # draw all sprites
+        for entity in all_sprites:
+            screen.blit(entity.surf, entity.rect)
+
+        pg.display.flip()
+
+        if not alive:
+            return kill_screen()
+
+        clock.tick(FPS)
+        speed += 0.02
+        frames_since_obstacle += 1
+
+
 running = True
 while running:
-    for event in pg.event.get():
-        if event.type == KEYDOWN:
-            # stop the loop if user hits Esc key
-            if event.key == K_ESCAPE:
-                running = False
-        # stop the loop if user hits window close
-        elif event.type == QUIT:
-            running = False
-
-    pressed_keys = pg.key.get_pressed()
-
-    # add obstacles
-    if frames_since_obstacle % random.randint(16, 32) == 0:
-        obstacle = Obstacle()
-        obstacles.add(obstacle)
-        all_sprites.add(obstacle)
-        frames_since_obstacle = 0
-
-    player.update(pressed_keys)
-
-    obstacles.update(speed)
-
-    screen.fill((255, 255, 255))
-
-    # draw all sprites
-    for entity in all_sprites:
-        screen.blit(entity.surf, entity.rect)
-
-    pg.display.flip()
-
-    clock.tick(FPS)
-    frames_since_obstacle += 1
+    running = main()
 
 pg.quit()

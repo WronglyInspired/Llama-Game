@@ -138,6 +138,7 @@ while running:
             # stop the loop if user hits Esc key
             if event.key == K_ESCAPE:
                 running = False
+
         # stop the loop if user hits window close
         elif event.type == QUIT:
             running = False

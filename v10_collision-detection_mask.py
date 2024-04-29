@@ -1,4 +1,8 @@
 """Llama Game
+The collision detection is now improved by detecting for a collision each
+pixel the cacti move, so that the cacti can't move a greater number of
+pixels than the player is wide and so completely phase through it.
+Also, have used masks rather than rects.
 """
 import pygame as pg
 from pygame.locals import (
@@ -24,12 +28,6 @@ GRAVITY = 10
 FPS = 30
 SCREEN_WIDTH, SCREEN_HEIGHT = 1280, 480
 GROUND_HEIGHT = SCREEN_HEIGHT - 80
-
-
-class Velocity:
-    def __init__(self):
-        self.x = 0
-        self.y = 0
 
 
 class Ground(pg.sprite.Sprite):
@@ -62,7 +60,10 @@ class Player(pg.sprite.Sprite):
                 "assets/llama_ducking.png"), (self.width, self.height))
         }
 
-        self.surf = self.SURFS["standing"]
+        self.image = self.SURFS["standing"]
+        self.surf = self.image
+        self.mask = pg.mask.from_surface(self.image)
+
         self.front_up = False
         self.jumping = False
         self.crouching = False
@@ -121,75 +122,113 @@ class Obstacle(pg.sprite.Sprite):
                 "assets/cactus.png"), (self.width, self.height))
         }
 
-        self.surf = self.SURFS["cacti"]
+        self.image = self.SURFS["cacti"]
+        self.surf = self.image
+        self.mask = pg.mask.from_surface(self.image)
 
         self.rect = self.surf.get_rect().move(SCREEN_WIDTH, GROUND_HEIGHT -
                                               self.height)
 
-    def update(self, step):
-        self.rect.x -= step
+    def update(self):
+        self.rect.x -= 1
         if self.rect.x <= -self.width:
             self.kill()
 
 
-# initialise display
-pg.display.set_icon(GAME_ICON)
-pg.display.set_caption(GAME_TITLE)
-screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+def kill_screen():
+    while True:
+        for event in pg.event.get():
+            if event.type == KEYDOWN:
+                # stop the loop if user hits Esc key
+                if event.key == K_ESCAPE:
+                    return False
+                if event.key == K_UP:
+                    return True
+            # stop the loop if user hits window close
+            elif event.type == QUIT:
+                return False
 
-# initialise clock
-clock = pg.time.Clock()
 
-# initialise sprites
-ground = Ground(SCREEN_WIDTH, GROUND_HEIGHT, 1)
-player = Player()
+# collision detection - moves obstacle by 1 pixel, then checks to
+# see if collision has occurred
+def detect_collision(speed, player, obstacles):
+    steps = int(round(speed))
+    for step in range(steps):
+        obstacles.update()
+        for obstacle in obstacles:
+            if pg.sprite.collide_mask(player, obstacle):
+                return False
+    return True
 
-# initialise sprite groups
-obstacles = pg.sprite.Group()
-all_sprites = pg.sprite.Group()
-all_sprites.add(ground)
-all_sprites.add(player)
 
-# initialise obstacle timer
-frames_since_obstacle = 0
+def main():
+    # initialise display
+    pg.display.set_icon(GAME_ICON)
+    pg.display.set_caption(GAME_TITLE)
+    screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
-# initialise step / speed variable
-speed = 16
+    # initialise clock
+    clock = pg.time.Clock()
 
-# game loop
+    # initialise sprites
+    ground = Ground(SCREEN_WIDTH, GROUND_HEIGHT, 1)
+    player = Player()
+
+    # initialise sprite groups
+    obstacles = pg.sprite.Group()
+    all_sprites = pg.sprite.Group()
+    all_sprites.add(ground)
+    all_sprites.add(player)
+
+    # initialise obstacle timer
+    frames_since_obstacle = 0
+
+    # initialise step / speed variable
+    speed = 16
+
+    # game loop
+    while True:
+        for event in pg.event.get():
+            if event.type == KEYDOWN:
+                # stop the loop if user hits Esc key
+                if event.key == K_ESCAPE:
+                    return False
+            # stop the loop if user hits window close
+            elif event.type == QUIT:
+                return False
+
+        pressed_keys = pg.key.get_pressed()
+
+        # add obstacles
+        if frames_since_obstacle % random.randint(11, 32) == 0:
+            obstacle = Obstacle()
+            obstacles.add(obstacle)
+            all_sprites.add(obstacle)
+            frames_since_obstacle = 0
+
+        player.update(pressed_keys)
+
+        # update obstacles whilst detection collisions
+        alive = detect_collision(speed, player, obstacles)
+
+        screen.fill((255, 255, 255))
+
+        # draw all sprites
+        for entity in all_sprites:
+            screen.blit(entity.surf, entity.rect)
+
+        pg.display.flip()
+
+        if not alive:
+            return kill_screen()
+
+        clock.tick(FPS)
+        speed += 0.01
+        frames_since_obstacle += 1
+
+
 running = True
 while running:
-    for event in pg.event.get():
-        if event.type == KEYDOWN:
-            # stop the loop if user hits Esc key
-            if event.key == K_ESCAPE:
-                running = False
-        # stop the loop if user hits window close
-        elif event.type == QUIT:
-            running = False
-
-    pressed_keys = pg.key.get_pressed()
-
-    # add obstacles
-    if frames_since_obstacle % random.randint(16, 32) == 0:
-        obstacle = Obstacle()
-        obstacles.add(obstacle)
-        all_sprites.add(obstacle)
-        frames_since_obstacle = 0
-
-    player.update(pressed_keys)
-
-    obstacles.update(speed)
-
-    screen.fill((255, 255, 255))
-
-    # draw all sprites
-    for entity in all_sprites:
-        screen.blit(entity.surf, entity.rect)
-
-    pg.display.flip()
-
-    clock.tick(FPS)
-    frames_since_obstacle += 1
+    running = main()
 
 pg.quit()

@@ -26,12 +26,6 @@ SCREEN_WIDTH, SCREEN_HEIGHT = 1280, 480
 GROUND_HEIGHT = SCREEN_HEIGHT - 80
 
 
-class Velocity:
-    def __init__(self):
-        self.x = 0
-        self.y = 0
-
-
 class Ground(pg.sprite.Sprite):
     def __init__(self, width, height, thickness):
         super(Ground, self).__init__()
@@ -132,64 +126,85 @@ class Obstacle(pg.sprite.Sprite):
             self.kill()
 
 
-# initialise display
-pg.display.set_icon(GAME_ICON)
-pg.display.set_caption(GAME_TITLE)
-screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+def kill_screen():
+    while True:
+        for event in pg.event.get():
+            if event.type == KEYDOWN:
+                # stop the loop if user hits Esc key
+                if event.key == K_ESCAPE:
+                    return False
+                if event.key == K_SPACE:
+                    return True
+            # stop the loop if user hits window close
+            elif event.type == QUIT:
+                return False
+def main():
+    # initialise display
+    pg.display.set_icon(GAME_ICON)
+    pg.display.set_caption(GAME_TITLE)
+    screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
-# initialise clock
-clock = pg.time.Clock()
+    # initialise clock
+    clock = pg.time.Clock()
 
-# initialise sprites
-ground = Ground(SCREEN_WIDTH, GROUND_HEIGHT, 1)
-player = Player()
+    # initialise sprites
+    ground = Ground(SCREEN_WIDTH, GROUND_HEIGHT, 1)
+    player = Player()
 
-# initialise sprite groups
-obstacles = pg.sprite.Group()
-all_sprites = pg.sprite.Group()
-all_sprites.add(ground)
-all_sprites.add(player)
+    # initialise sprite groups
+    obstacles = pg.sprite.Group()
+    all_sprites = pg.sprite.Group()
+    all_sprites.add(ground)
+    all_sprites.add(player)
 
-# initialise obstacle timer
-frames_since_obstacle = 0
+    # initialise obstacle timer
+    frames_since_obstacle = 0
 
-# initialise step / speed variable
-speed = 16
+    # initialise step / speed variable
+    speed = 16
 
-# game loop
+    # game loop
+    while True:
+        for event in pg.event.get():
+            if event.type == KEYDOWN:
+                # stop the loop if user hits Esc key
+                if event.key == K_ESCAPE:
+                    return False
+            # stop the loop if user hits window close
+            elif event.type == QUIT:
+                return False
+
+        pressed_keys = pg.key.get_pressed()
+
+        # add obstacles
+        if frames_since_obstacle % random.randint(16, 32) == 0:
+            obstacle = Obstacle()
+            obstacles.add(obstacle)
+            all_sprites.add(obstacle)
+            frames_since_obstacle = 0
+
+        player.update(pressed_keys)
+
+        obstacles.update(speed)
+
+        screen.fill((255, 255, 255))
+
+        # draw all sprites
+        for entity in all_sprites:
+            screen.blit(entity.surf, entity.rect)
+
+        pg.display.flip()
+
+        # check if obstacles have collided with the player
+        if pg.sprite.spritecollideany(player, obstacles):
+            return kill_screen()
+
+        clock.tick(FPS)
+        frames_since_obstacle += 1
+
+
 running = True
 while running:
-    for event in pg.event.get():
-        if event.type == KEYDOWN:
-            # stop the loop if user hits Esc key
-            if event.key == K_ESCAPE:
-                running = False
-        # stop the loop if user hits window close
-        elif event.type == QUIT:
-            running = False
-
-    pressed_keys = pg.key.get_pressed()
-
-    # add obstacles
-    if frames_since_obstacle % random.randint(16, 32) == 0:
-        obstacle = Obstacle()
-        obstacles.add(obstacle)
-        all_sprites.add(obstacle)
-        frames_since_obstacle = 0
-
-    player.update(pressed_keys)
-
-    obstacles.update(speed)
-
-    screen.fill((255, 255, 255))
-
-    # draw all sprites
-    for entity in all_sprites:
-        screen.blit(entity.surf, entity.rect)
-
-    pg.display.flip()
-
-    clock.tick(FPS)
-    frames_since_obstacle += 1
+    running = main()
 
 pg.quit()
